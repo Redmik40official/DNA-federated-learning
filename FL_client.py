@@ -21,6 +21,9 @@ class FLClient:
         self.r = 3.99
 
         self.optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
+        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            self.optimizer, T_max=10, eta_min=1e-5
+        )
         self.criterion = nn.CrossEntropyLoss()
 
         self.num_samples = len(dataloader.dataset)
@@ -53,6 +56,7 @@ class FLClient:
         acc = 100 * correct / total
         self.losses.append(avg_loss)
         self.accuracies.append(acc)
+        self.scheduler.step()
         return avg_loss, acc
 
     def get_weights(self):

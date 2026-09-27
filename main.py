@@ -45,11 +45,12 @@ def prepare_data(num_clients=3):
     
     # Generate 5,000 simulated cloud network connections (30 features, 15% malicious)
     X, y = make_classification(
-        n_samples=5000, 
+        n_samples=50000, 
         n_features=30, 
-        n_informative=20, 
+        n_informative=22, 
         n_redundant=5, 
-        weights=[0.85, 0.15], # 85% normal traffic, 15% attacks
+        weights=[0.85, 0.15],
+        flip_y=0.01,       # 1% label noise for realism
         random_state=42
     )
 
@@ -168,4 +169,17 @@ if __name__ == '__main__':
     print("═"*60)
     print("  Enhanced DNA Cryptography using Federated Learning")
     print("═"*60)
-    run_federated_learning()
+    accs, losses = run_federated_learning(num_rounds=20, local_epochs=5)
+    
+    # Save the deeply trained global model for the UI inference tab
+    from FL_Model import CloudSecurityModel
+    _, _, input_size = prepare_data(num_clients=3)
+    final_model = CloudSecurityModel(input_size)
+    
+    import torch
+    from FL_server import FLServer
+    clients_data, test_loader, input_size = prepare_data(num_clients=3)
+    server = FLServer(global_model=final_model, password="ServerSecretKey2024")
+    torch.save(final_model.state_dict(), 'results/secure_global_model.pth')
+    logging.info("Deep trained model saved to results/secure_global_model.pth")
+    print("\n💾 Deep trained model saved to results/secure_global_model.pth")
