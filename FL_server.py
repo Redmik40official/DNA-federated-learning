@@ -67,19 +67,39 @@ class FLServer:
         return encrypt_weights(weights, self.password, self.rule, self.x0, self.r)
 
     def evaluate(self, test_loader):
+        from sklearn.metrics import accuracy_score, precision_recall_fscore_support, roc_auc_score
         self.model.eval()
-        correct = 0
-        total = 0
-        loss = 0
+        all_preds = []
+        all_labels = []
+        all_probs = []
+        total_loss = 0.0
+
         with torch.no_grad():
-            for X, y in test_loader:
-                out = self.model(X)
-                loss += self.criterion(out, y).item()
-                _, pred = torch.max(out, 1)
-                correct += (pred == y).sum().item()
-                total += y.size(0)
-        acc = 100 * correct / total
-        avg_loss = loss / len(test_loader)
+            for data, target in test_loader:
+                output = self.model(data)
+                loss = self.criterion(output, target)
+                total_loss += loss.item() * data.size(0)
+                
+                probs = torch.softmax(output, dim=1)[:, 1].numpy()
+                preds = output.argmax(dim=1).numpy()
+                
+                all_probs.extend(probs)
+                all_preds.extend(preds)
+                all_labels.extend(target.numpy())
+
+        avg_loss = total_loss / len(test_loader.dataset)
+        acc = accuracy_score(all_labels, all_preds) * 100
+        precision, recall, f1, _ = precision_recall_fscore_support(all_labels, all_preds, average='binary', zero_division=0)
+        auc = roc_auc_score(all_labels, all_probs)
+
+        metrics = {
+            'accuracy': acc,
+            'loss': avg_loss,
+            'precision': precision * 100,
+            'recall': recall * 100,
+            'f1_score': f1 * 100,
+            'roc_auc': auc
+        }
         self.accuracies.append(acc)
         self.losses.append(avg_loss)
-        return acc, avg_loss
+        return metrics

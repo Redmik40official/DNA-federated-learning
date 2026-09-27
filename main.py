@@ -1,8 +1,3 @@
-"""
-Enhanced DNA Cryptography using Federated Learning for Cloud Data Security
-Main Execution Entrypoint
-"""
-
 import os
 import sys
 import torch
@@ -15,9 +10,26 @@ from sklearn.datasets import load_breast_cancer
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 import time
+import json
+import random
+import logging
 
 # Fix Windows terminal Unicode encoding
 sys.stdout.reconfigure(encoding='utf-8')
+
+# Setup Professional Logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', handlers=[
+    logging.FileHandler("results/federated_training.log"),
+    logging.StreamHandler(sys.stdout)
+])
+
+def set_seed(seed=42):
+    """Enforces reproducibility for conference papers."""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
 
 from FL_Model import CloudSecurityModel
 from FL_client import FLClient
@@ -25,11 +37,21 @@ from FL_server import FLServer
 from DNA_crypto import encrypt, decrypt
 
 os.makedirs('results', exist_ok=True)
+set_seed(42)
 
 def prepare_data(num_clients=3):
-    print("\n📂 Loading Dataset (Breast Cancer)...")
-    data = load_breast_cancer()
-    X, y = data.data, data.target
+    from sklearn.datasets import make_classification
+    print("\n📂 Loading Dataset (Cloud Network Intrusion Logs)...")
+    
+    # Generate 5,000 simulated cloud network connections (30 features, 15% malicious)
+    X, y = make_classification(
+        n_samples=5000, 
+        n_features=30, 
+        n_informative=20, 
+        n_redundant=5, 
+        weights=[0.85, 0.15], # 85% normal traffic, 15% attacks
+        random_state=42
+    )
 
     scaler = StandardScaler()
     X = scaler.fit_transform(X)
@@ -87,24 +109,41 @@ def run_federated_learning(num_clients=3, num_rounds=10, local_epochs=3):
             loss, acc = c.train_local(epochs=local_epochs)
             print(f"   [Client {c.id}] Loss: {loss:.4f} | Local Acc: {acc:.2f}%")
 
-        # 2. DNA Encryption & Transmission
+        # 2. DNA Encryption & Transmission (with fault tolerance)
+        active_clients = []
         for c in clients:
+            # Simulate real-world 10% chance of client network failure
+            if random.random() < 0.1:
+                logging.warning(f"Client {c.id} dropped out this round (Network Simulation).")
+                print(f"   [!] Client {c.id} connection lost.")
+                continue
+            
             enc_weights = c.encrypt_and_send()
             server.receive_update(c.id, enc_weights, c.password, c.num_samples)
+            active_clients.append(c)
 
         # 3. Server FedAvg
         server.aggregate()
 
         # 4. Global Encryption & Distribution
         enc_global = server.encrypt_global()
-        for c in clients:
+        for c in active_clients:
             c.receive_and_decrypt(enc_global)
 
         # 5. Evaluation
-        acc, loss = server.evaluate(test_loader)
+        metrics = server.evaluate(test_loader)
+        acc = metrics['accuracy']
+        loss = metrics['loss']
         round_accuracies.append(acc)
         round_losses.append(loss)
-        print(f"   [Global Model] Accuracy: {acc:.2f}% | Loss: {loss:.4f}")
+        
+        logging.info(f"Round {rnd} | Acc: {acc:.2f}% | Loss: {loss:.4f} | F1: {metrics['f1_score']:.2f}% | AUC: {metrics['roc_auc']:.4f}")
+        print(f"   [Global Model] Accuracy: {acc:.2f}% | F1-Score: {metrics['f1_score']:.2f}% | AUC: {metrics['roc_auc']:.4f}")
+
+    # Export metrics for conference graphs
+    with open('results/conference_metrics.json', 'w') as f:
+        json.dump({'accuracies': round_accuracies, 'losses': round_losses}, f)
+        logging.info("Metrics exported to results/conference_metrics.json")
 
     # Plot metrics
     plt.figure(figsize=(10, 4))
