@@ -114,7 +114,8 @@ with tab1:
 
             round_enc_times = []
             for idx, c in enumerate(clients):
-                loss, acc = c.train_local(epochs=local_epochs)
+                global_weights_tensors = list(server.model.parameters())
+                loss, acc = c.train_local(global_weights=global_weights_tensors, epochs=local_epochs)
                 client_acc_hist[idx].append(acc)
                 status_boxes[idx].success(
                     f"**{names[idx]}**\n\n✅ Done\n\nLocal Acc: {acc:.2f}%")

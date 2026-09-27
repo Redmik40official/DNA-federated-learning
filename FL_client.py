@@ -32,7 +32,7 @@ class FLClient:
         self.encrypt_times = []
         self.decrypt_times = []
 
-    def train_local(self, epochs=3):
+    def train_local(self, global_weights=None, epochs=3, mu=0.01):
         self.model.train()
         total_loss = 0
         correct = 0
@@ -43,6 +43,14 @@ class FLClient:
                 self.optimizer.zero_grad()
                 out = self.model(X)
                 loss = self.criterion(out, y)
+                
+                # ── IMPROVEMENT 1: FedProx Proximal Term (Handles Non-IID) ──
+                if global_weights is not None:
+                    proximal_term = 0.0
+                    for param, global_w in zip(self.model.parameters(), global_weights):
+                        proximal_term += ((param - global_w) ** 2).sum()
+                    loss += (mu / 2) * proximal_term
+
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
                 self.optimizer.step()
@@ -59,8 +67,18 @@ class FLClient:
         self.scheduler.step()
         return avg_loss, acc
 
-    def get_weights(self):
-        return {name: param.cpu().detach().numpy() for name, param in self.model.state_dict().items()}
+    def get_weights(self, apply_ldp=True, noise_scale=0.001):
+        weights = {}
+        for name, param in self.model.state_dict().items():
+            w = param.cpu().detach().numpy()
+            
+            # ── IMPROVEMENT 2: Local Differential Privacy (LDP) ──
+            if apply_ldp:
+                noise = np.random.normal(0, noise_scale, w.shape)
+                w = w + noise
+                
+            weights[name] = w
+        return weights
 
     def set_weights(self, weights_dict):
         state = OrderedDict()

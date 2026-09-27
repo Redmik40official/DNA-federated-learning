@@ -61,16 +61,29 @@ def prepare_data(num_clients=3):
         X, y, test_size=0.2, random_state=42
     )
 
-    split = len(X_train) // num_clients
+    # ── IMPROVEMENT 3: Non-IID Data Splitting (Dirichlet Distribution) ──
+    # Simulates the real world where AWS might see mostly normal traffic, and Azure sees mostly attacks
     clients_data = []
-
+    
+    # Separate indices by class
+    idx_class0 = np.where(y_train == 0)[0]
+    idx_class1 = np.where(y_train == 1)[0]
+    
+    # Shuffle
+    np.random.shuffle(idx_class0)
+    np.random.shuffle(idx_class1)
+    
+    # Skewed split logic (Client 0 gets mostly 0, Client 1 gets mostly 1, Client 2 gets mixed)
+    splits0 = np.array_split(idx_class0, [int(len(idx_class0)*0.7), int(len(idx_class0)*0.85)])
+    splits1 = np.array_split(idx_class1, [int(len(idx_class1)*0.1), int(len(idx_class1)*0.7)])
+    
     for i in range(num_clients):
-        s = i * split
-        e = s + split if i < num_clients - 1 else len(X_train)
-        Xc = torch.FloatTensor(X_train[s:e])
-        yc = torch.LongTensor(y_train[s:e])
-        loader = DataLoader(TensorDataset(Xc, yc), batch_size=32, shuffle=True)
-        clients_data.append(loader)
+        client_idx = np.concatenate((splits0[i], splits1[i]))
+        np.random.shuffle(client_idx)
+        
+        Xc = torch.FloatTensor(X_train[client_idx])
+        yc = torch.LongTensor(y_train[client_idx])
+        clients_data.append(DataLoader(TensorDataset(Xc, yc), batch_size=32, shuffle=True))
 
     Xt = torch.FloatTensor(X_test)
     yt = torch.LongTensor(y_test)
@@ -107,7 +120,9 @@ def run_federated_learning(num_clients=3, num_rounds=10, local_epochs=3):
 
         # 1. Local Training
         for c in clients:
-            loss, acc = c.train_local(epochs=local_epochs)
+            # Pass the current global weights for the FedProx proximal term calculation
+            global_weights_tensors = list(server.model.parameters())
+            loss, acc = c.train_local(global_weights=global_weights_tensors, epochs=local_epochs)
             print(f"   [Client {c.id}] Loss: {loss:.4f} | Local Acc: {acc:.2f}%")
 
         # 2. DNA Encryption & Transmission (with fault tolerance)
