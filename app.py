@@ -15,7 +15,7 @@ from main import prepare_data
 from FL_Model import CloudSecurityModel
 from FL_client import FLClient
 from FL_server import FLServer
-from DNA_crypto import encrypt_weights, decrypt_weights
+from DNA_crypto import encrypt_weights, decrypt_weights, encrypt, decrypt
 
 # ── Page Config ────────────────────────────────────────────────────────────────
 st.set_page_config(page_title="DNA-FL Security Dashboard", page_icon="🧬", layout="wide")
@@ -466,3 +466,45 @@ with tab3:
         | Encryption Time | {enc_time:.1f} ms |
         | Decryption Time | {dec_time:.1f} ms |
         """)
+
+    st.markdown("---")
+    st.markdown("#### 🧬 Live DNA Text Encryptor & Decryptor Sandbox")
+    st.markdown("Type any secret text, telemetry record, or key to test biological DNA encryption live.")
+
+    col_t1, col_t2 = st.columns(2)
+    with col_t1:
+        input_text = st.text_area("Secret Message / Telemetry Data", "CONFIDENTIAL: Patient Record #4092 - Heart Rate High", height=100)
+        secret_pass = st.text_input("Encryption Password / Key", "SecretPass2026")
+    with col_t2:
+        dna_rule = st.selectbox("DNA Encoding Rule (1-8)", options=list(range(1, 9)), index=1)
+        x0_param = st.slider("Chaotic Map Seed (x₀)", 0.1, 0.9, 0.35)
+        r_param = st.slider("Chaotic Parameter (r)", 3.57, 4.0, 3.99)
+
+    if st.button("🔒 Encrypt Message to DNA Sequence", type="secondary"):
+        if input_text:
+            cipher_res = encrypt(input_text, secret_pass, rule=dna_rule, x0=x0_param, r=r_param)
+            st.session_state['dna_cipher_demo'] = cipher_res
+            st.session_state['dna_pass_demo'] = secret_pass
+            st.success("✅ Encrypted Successfully!")
+            
+            dna_str = cipher_res['cipher']
+            st.markdown(f"**Ciphertext Length:** {len(dna_str)} bases")
+            st.markdown(f"""
+            <div style='background:#0e1117;padding:12px;border-radius:5px;border:1px solid #2ecc71;'>
+            <p style='color:#2ecc71;margin-bottom:4px;'><strong>🧬 Biological DNA Sequence Payload:</strong></p>
+            <p class='dna-font'>{dna_str}</p>
+            </div>""", unsafe_allow_html=True)
+
+    if 'dna_cipher_demo' in st.session_state:
+        st.markdown("##### Decryption Test")
+        decrypt_pass = st.text_input("Enter Password to Decrypt", st.session_state['dna_pass_demo'], key="dec_pass_input")
+        if st.button("🔓 Decrypt DNA Sequence Back to Text"):
+            try:
+                decrypted_msg = decrypt(st.session_state['dna_cipher_demo'], decrypt_pass)
+                if decrypted_msg:
+                    st.success(f"✅ **Decrypted Output:** `{decrypted_msg}`")
+                else:
+                    st.error("❌ Decryption failed or incorrect password.")
+            except Exception as e:
+                st.error(f"❌ Decryption Failed: {str(e)}")
+
