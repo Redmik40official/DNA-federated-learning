@@ -18,6 +18,7 @@ import logging
 sys.stdout.reconfigure(encoding='utf-8')
 
 # Setup Professional Logging
+os.makedirs("results", exist_ok=True)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', handlers=[
     logging.FileHandler("results/federated_training.log"),
     logging.StreamHandler(sys.stdout)
