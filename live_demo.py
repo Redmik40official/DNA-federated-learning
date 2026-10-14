@@ -13,7 +13,7 @@ YELLOW = '\033[93m'
 RED = '\033[91m'
 RESET = '\033[0m'
 
-def slow_print(text, delay=0.03):
+def slow_print(text, delay=0.01):
     for char in text:
         sys.stdout.write(char)
         sys.stdout.flush()

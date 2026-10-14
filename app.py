@@ -274,20 +274,30 @@ with tab1:
                                mime="application/octet-stream")
 
 
+def get_model_path():
+    if os.path.exists("results/secure_global_model.pth"):
+        return "results/secure_global_model.pth"
+    if os.path.exists("models/secure_global_model.pth"):
+        return "models/secure_global_model.pth"
+    return None
+
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 2 — LIVE THREAT DETECTION  (FEATURE 4: Manual Packet Injection)
 # ══════════════════════════════════════════════════════════════════════════════
 with tab2:
     st.markdown("### 🛡️ Real-Time Threat Detection")
 
-    if not os.path.exists("results/secure_global_model.pth"):
+    active_model_path = get_model_path()
+    if not active_model_path:
         st.warning("⚠️ Run Phase 1 first to train the model.")
     else:
+        if active_model_path == "models/secure_global_model.pth":
+            st.info("ℹ️ Using pre-trained baseline global model (98.88% accuracy). You can also run Phase 1 anytime to retrain.")
         st.markdown("#### Option A — Intercept Random Network Traffic")
         if st.button("📡 Intercept & Analyze 10 Random Packets", type="primary"):
             model = CloudSecurityModel(input_size=30)
-            model.load_state_dict(torch.load("results/secure_global_model.pth",
-                                             weights_only=False))
+            model.load_state_dict(torch.load(active_model_path, weights_only=False))
+
             model.eval()
 
             features = np.random.randn(10, 30)
@@ -343,8 +353,7 @@ with tab2:
 
         if st.button("🔍 Classify This Packet", type="secondary"):
             model = CloudSecurityModel(input_size=30)
-            model.load_state_dict(torch.load("results/secure_global_model.pth",
-                                             weights_only=False))
+            model.load_state_dict(torch.load(active_model_path, weights_only=False))
             model.eval()
 
             # Build 30-feature vector from the manual inputs
