@@ -117,6 +117,7 @@ def encrypt_weights(weights_dict, password, rule=1, x0=0.5, r=3.99):
         text = json.dumps(flat)
         enc = encrypt(text, password, rule, x0, r)
         enc['shape'] = list(w.shape)
+        enc['dtype'] = str(w.dtype)
         encrypted[name] = enc
     return encrypted
 
@@ -126,5 +127,6 @@ def decrypt_weights(encrypted_dict, password):
         text = decrypt(enc, password)
         flat = json.loads(text)
         shape = enc['shape']
-        weights[name] = np.array(flat).reshape(shape)
+        dtype = enc.get('dtype', 'float32')
+        weights[name] = np.array(flat, dtype=dtype).reshape(shape)
     return weights

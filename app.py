@@ -427,6 +427,8 @@ with tab3:
         # SHA-256 of decrypted weights
         decrypted_hashes = {}
         for name, w in decrypted.items():
+            if w.dtype != original_weights[name].dtype:
+                w = w.astype(original_weights[name].dtype)
             h = hashlib.sha256(w.tobytes()).hexdigest()
             decrypted_hashes[name] = h
 
